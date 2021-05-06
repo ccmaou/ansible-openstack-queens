@@ -1,0 +1,87 @@
+- name: 配置Neutron OpenVSwitch
+  yum:
+   name: "{{item}}"
+   state: present
+  with_items:
+   - openstack-neutron
+   - openstack-neutron-ml2
+   - openstack-neutron-openvswitch
+   - ebtables
+
+- name: 配置Neutron 配置文件
+  template:
+   src: neutron.conf.j2
+   dest: /etc/neutron/neutron.conf
+   owner: root
+   group: neutron
+   mode: 0640
+
+- name: 配置ml2
+  template:
+   src: ml2_conf.ini.j2
+   dest: /etc/neutron/plugins/ml2/ml2_conf.ini
+   owner: root
+   group: neutron
+   mode: 0640
+
+- name: 配置openvswitch
+  shell:
+    cmd: |
+         openstack-config --set /etc/neutron/plugins/ml2/openvswitch_agent.ini ovs bridge_mappings {{flat_net_name}}:{{ovs_br_name}}
+         openstack-config --set /etc/neutron/l3_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+
+- name: 配置DHCP服务
+  shell:
+    cmd: |
+         openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+         openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT dhcp_driver neutron.agent.linux.dhcp.Dnsmasq
+         openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT enable_isolated_metadata true
+
+- name: 配置metadata
+  shell:
+    cmd: |
+         openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT nova_metadata_host {{VIP_IP}}
+         openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT metadata_proxy_shared_secret {{metadata_password}}
+         openstack-config --set /etc/neutron/metadata_agent.ini cache memcached_servers {{memcached_servers}}
+
+- name: 给nova配置neutron
+  shell:
+    cmd: |
+         openstack-config --set /etc/nova/nova.conf DEFAULT use_neutron true
+         openstack-config --set /etc/nova/nova.conf DEFAULT linuxnet_interface_driver nova.network.linux_net.LinuxOVSInterfaceDriver
+         openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
+         openstack-config --set /etc/nova/nova.conf neutron url http://{{VIP_IP}}:9696
+         openstack-config --set /etc/nova/nova.conf neutron auth_url http://{{VIP_IP}}:35357
+         openstack-config --set /etc/nova/nova.conf neutron auth_type password
+         openstack-config --set /etc/nova/nova.conf neutron project_domain_name default
+         openstack-config --set /etc/nova/nova.conf neutron user_domain_name default
+         openstack-config --set /etc/nova/nova.conf neutron region_name RegionOne
+         openstack-config --set /etc/nova/nova.conf neutron project_name service
+         openstack-config --set /etc/nova/nova.conf neutron username neutron
+         openstack-config --set /etc/nova/nova.conf neutron password {{neutron_password}}
+         openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy true
+         openstack-config --set /etc/nova/nova.conf neutron metadata_proxy_shared_secret {{metadata_password}}
+
+- name: 创建服务软链接
+  shell: ln -s /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+
+- name: 同步数据库
+  shell: su -s /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+  when: ansible_hostname == "controller1"
+
+- name: 启动OVS
+  service:
+   name: openvswitch
+   state: restarted
+   enabled: yes
+
+- name: 创建网桥
+  shell:
+    cmd: |
+         ovs-vsctl add-br br-int
+         ovs-vsctl add-br {{ovs_br_name}}
+         ovs-vsctl add-port {{ovs_br_name}} {{net_network}}
+         systemctl restart openstack-nova-compute
+         systemctl enable neutron-openvswitch-agent
+         systemctl start neutron-openvswitch-agent
+

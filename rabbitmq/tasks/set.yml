@@ -1,0 +1,11 @@
+- name: 创建用户信息并设置权限
+  shell:
+    cmd: |
+        rabbitmqctl stop_app
+        rabbitmqctl join_cluster rabbit@{{controller1_hostname}}
+        rabbitmqctl start_app
+        rabbitmqctl add_user openstack {{rabbitmq_password}}
+        rabbitmqctl set_permissions -p "/" openstack ".*" ".*" ".*"
+        rabbitmqctl list_users
+        rabbitmqctl set_policy ha-all '^(?!amq\.).*' '{"ha-mode": "all"}'
+        

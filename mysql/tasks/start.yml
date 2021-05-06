@@ -1,0 +1,6 @@
+- name: 引导启动Galera
+  shell:
+    cmd: |
+         systemctl stop mysqld
+         /usr/bin/mysqld_bootstrap
+         sleep 5

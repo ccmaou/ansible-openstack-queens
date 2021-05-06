@@ -1,0 +1,7 @@
+- name: 启用控制面板
+  shell:
+    cmd: |
+        rabbitmq-plugins enable rabbitmq_management
+        systemctl restart rabbitmq-server.service
+        echo 'while ! systemctl status rabbitmq-server.service; do systemctl restart rabbitmq-server.service; done' >> /etc/rc.local
+        chmod +x /etc/rc.local

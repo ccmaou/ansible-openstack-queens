@@ -1,0 +1,32 @@
+- name: 创建nova数据库用户
+  shell:
+    cmd: |
+        mysql -uroot -p{{mysql_password}} <<EOF
+        CREATE DATABASE IF NOT EXISTS nova_api;
+        CREATE DATABASE IF NOT EXISTS nova;
+        CREATE DATABASE IF NOT EXISTS nova_cell0;
+        GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'localhost' IDENTIFIED BY '{{nova_password}}';
+        GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'%' IDENTIFIED BY '{{nova_password}}';
+        GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY '{{nova_password}}';
+        GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY '{{nova_password}}';
+        GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'localhost' IDENTIFIED BY '{{nova_password}}';
+        GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'%' IDENTIFIED BY '{{nova_password}}';
+        FLUSH PRIVILEGES;
+        EOF
+
+- name: 部署nova计算节点
+  shell:
+    cmd: |
+         . ~/admin-openrc
+         openstack user create --domain Default --password {{nova_password}} nova
+         openstack role add --project service --user nova admin
+         openstack service create --name nova --description "OpenStack Compute" compute
+         openstack endpoint create --region RegionOne compute public http://{{VIP_IP}}:8774/v2.1
+         openstack endpoint create --region RegionOne compute internal http://{{VIP_IP}}:8774/v2.1
+         openstack endpoint create --region RegionOne compute admin http://{{VIP_IP}}:8774/v2.1
+         openstack user create --domain Default --password {{placement_password}} placement
+         openstack role add --project service --user placement admin
+         openstack service create --name placement --description "Placement API" placement
+         openstack endpoint create --region RegionOne placement public http://{{VIP_IP}}:8778
+         openstack endpoint create --region RegionOne placement internal http://{{VIP_IP}}:8778
+         openstack endpoint create --region RegionOne placement admin http://{{VIP_IP}}:8778

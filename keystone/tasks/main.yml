@@ -1,0 +1,44 @@
+- include: keystone/tasks/create.yml
+
+- name: 安装keystone组件
+  yum:
+   name: "{{ item }}"
+   state: present
+  with_items:
+   - openstack-keystone
+   - httpd
+   - mod_wsgi
+
+- name: 配置keystone
+  shell:
+    cmd: |
+         test -f /etc/keystone/keystone.conf.bak || cp /etc/keystone/keystone.conf /etc/keystone/keystone.conf.bak
+         openstack-config --set /etc/keystone/keystone.conf database connection mysql+pymysql://keystone:{{keystone_password}}@{{VIP_IP}}:3306/keystone
+         openstack-config --set /etc/keystone/keystone.conf token provider fernet
+         su -s /bin/sh -c "keystone-manage db_sync" keystone
+         keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+         keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+         keystone-manage bootstrap --bootstrap-password {{openstack_admin_password}} --bootstrap-admin-url http://{{VIP_IP}}:35357/v3/ --bootstrap-internal-url http://{{VIP_IP}}:5000/v3/ --bootstrap-public-url http://{{VIP_IP}}:5000/v3/ --bootstrap-region-id RegionOne
+
+- name: 配置httpd
+  shell:
+    cmd: |
+          test -e ~/httpd.conf.bak && echo "已备份" || \cp /etc/httpd/conf/httpd.conf ~/httpd.conf.bak
+          sed -r -i '/(^[ \t]*#|^[ \t]*$)/d' /etc/httpd/conf/httpd.conf
+          grep -Ee "^[ \t]*ServerName" /etc/httpd/conf/httpd.conf
+          if [[ $? == "0" ]]; then
+             sed -r -i '/^[ \t]*ServerName/d' /etc/httpd/conf/httpd.conf
+             sed -r -i '1i ServerName '{{inventory_hostname_short}}':80' /etc/httpd/conf/httpd.conf
+          else
+             sed -r -i '1i ServerName '{{inventory_hostname_short}}':80' /etc/httpd/conf/httpd.conf
+          fi
+          ln -s /usr/share/keystone/wsgi-keystone.conf /etc/httpd/conf.d/
+          Local_IP="`ip add show {{manager_network}} | grep -E "^\s*inet +" | awk -F '[ /]+' 'NR==1{print $3}'`"
+          sed -r -i 's/Listen 5000/Listen '$Local_IP':5000/' /etc/httpd/conf.d/wsgi-keystone.conf
+          sed -r -i 's/Listen 35357/Listen '$Local_IP':35357/' /etc/httpd/conf.d/wsgi-keystone.conf
+
+- name: 启动httpd
+  service: 
+     name: httpd
+     state: restarted
+     enabled: yes

@@ -1,0 +1,5 @@
+- name: 重启服务
+  service: 
+    name: rabbitmq-server
+    state: restarted
+    enabled: yes

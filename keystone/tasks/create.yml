@@ -1,0 +1,33 @@
+- name: 创建数据库
+  mysql_db:
+    login_host: "{{VIP_IP}}"
+    login_user: "root"
+    login_password: "{{mysql_password}}"
+    login_port: "3306"
+    name: "keystone"
+    encoding: "utf8"
+    state: "present"
+
+- name: 授权keystone本地
+  mysql_user:
+    login_host: "{{VIP_IP}}"
+    login_user: "root"
+    login_password: "{{mysql_password}}"
+    login_port: "3306"
+    name: "keystone"
+    password: "{{keystone_password}}"
+    host: "localhost"
+    priv: "keystone.*:ALL,GRANT"
+    state: "present"
+
+- name: 授权keystone 所有IP
+  mysql_user:
+    login_host: "{{VIP_IP}}"
+    login_user: "root"
+    login_password: "{{mysql_password}}"
+    login_port: "3306"
+    name: "keystone"
+    password: "{{keystone_password}}"
+    host: "%"
+    priv: "keystone.*:ALL,GRANT"
+    state: "present"

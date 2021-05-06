@@ -1,0 +1,12 @@
+- name: 复制/etc/hosts
+  shell: 
+    cmd: |
+          cat > /etc/hosts <<EOF
+          127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+          ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+          192.168.150.100  controller1
+          192.168.150.110  controller2
+          192.168.150.120  compute
+          EOF
+
+- include: all.yml

@@ -1,0 +1,11 @@
+- name: 安装nova组件
+  yum: 
+   name: "{{ item }}"
+   state: present
+  with_items:
+   - openstack-nova-api
+   - openstack-nova-conductor
+   - openstack-nova-console
+   - openstack-nova-novncproxy
+   - openstack-nova-scheduler
+   - openstack-nova-placement-api

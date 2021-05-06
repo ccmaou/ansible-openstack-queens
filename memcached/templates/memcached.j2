@@ -1,0 +1,13 @@
+PORT="11211"
+USER="memcached"
+MAXCONN="1024"
+CACHESIZE="64"
+{% if manager_network == "ens33" %}
+OPTIONS="-l {{ansible_ens33.ipv4.address}},::1"
+{% endif %}
+{% if manager_network == "ens34" %}
+OPTIONS="-l {{ansible_ens34.ipv4.address}},::1"
+{% endif %}
+{% if manager_network == "ens35" %}
+OPTIONS="-l {{ansible_ens35.ipv4.address}},::1"
+{% endif %} 

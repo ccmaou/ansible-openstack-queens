@@ -1,0 +1,79 @@
+- name: 创建glance数据库和用户
+  shell: 
+    cmd: |
+         mysql -uroot -p{{mysql_password}} -h{{VIP_IP}} -P3306 <<EOF
+         CREATE DATABASE IF NOT EXISTS glance;
+         GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY '{{glance_password}}';
+         GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'{{controller1_hostname}}' IDENTIFIED BY '{{glance_password}}';
+         GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'{{controller2_hostname}}' IDENTIFIED BY '{{glance_password}}';
+         GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY '{{glance_password}}';
+         select user, host, authentication_string from mysql.user;
+         FLUSH PRIVILEGES;
+         EOF
+
+- name: 创建用户角色和服务
+  shell:
+    cmd: |
+         . /root/admin-openrc
+         openstack user create --domain default --password {{glance_password}}} glance
+         openstack role add --project service --user glance admin
+         openstack service create --name glance --description "OpenStack Image" image
+         openstack endpoint create --region RegionOne image public http://{{VIP_IP}}:9292
+         openstack endpoint create --region RegionOne image internal http://{{VIP_IP}}:9292
+         openstack endpoint create --region RegionOne image admin http://{{VIP_IP}}:9292
+
+- name: 安装glance镜像服务
+  yum:
+    name: openstack-glance
+    state: present
+    allow_downgrade: True
+
+- name: 配置glance服务
+  shell:
+    cmd: |
+         test -f /etc/glance/glance-api.conf.bak || cp /etc/glance/glance-api.conf /etc/glance/glance-api.conf.bak
+         Local_IP="`ip add show {{manager_network}} | grep -E "^\s*inet +" | awk -F '[ /]+' 'NR==1{print $3}'`"
+         openstack-config --set /etc/glance/glance-api.conf DEFAULT bind_host $Local_IP
+         openstack-config --set /etc/glance/glance-api.conf database connection mysql+pymysql://glance:{{glance_password}}@{{VIP_IP}}:3306/glance
+         openstack-config --set /etc/glance/glance-api.conf glance_store stores file,http
+         openstack-config --set /etc/glance/glance-api.conf glance_store default_store file
+         openstack-config --set /etc/glance/glance-api.conf glance_store filesystem_store_datadir /var/lib/glance/images/
+         openstack-config --set /etc/glance/glance-api.conf keystone_authtoken auth_uri http://{{VIP_IP}}:5000
+         openstack-config --set /etc/glance/glance-api.conf keystone_authtoken auth_url http://{{VIP_IP}}:5000
+         openstack-config --set /etc/glance/glance-api.conf keystone_authtoken memcached_servers {{memcached_servers}}
+         openstack-config --set /etc/glance/glance-api.conf keystone_authtoken auth_type password
+         openstack-config --set /etc/glance/glance-api.conf keystone_authtoken project_domain_name Default
+         openstack-config --set /etc/glance/glance-api.conf keystone_authtoken user_domain_name Default
+         openstack-config --set /etc/glance/glance-api.conf keystone_authtoken project_name service
+         openstack-config --set /etc/glance/glance-api.conf keystone_authtoken username glance
+         openstack-config --set /etc/glance/glance-api.conf keystone_authtoken password {{glance_password}}
+         openstack-config --set /etc/glance/glance-api.conf keystone_authtoken token_cache_time 3600
+         openstack-config --set /etc/glance/glance-api.conf keystone_authtoken revocation_cache_time 3600
+         openstack-config --set /etc/glance/glance-api.conf paste_deploy flavor keystone
+         test -f /etc/glance/glance-registry.conf.bak || \cp -f /etc/glance/glance-registry.conf /etc/glance/glance-registry.conf.bak
+         test -f /etc/glance/glance-registry.conf.bak || cp /etc/glance/glance-registry.conf /etc/glance/glance-registry.conf.bak
+         openstack-config --set /etc/glance/glance-registry.conf database connection mysql+pymysql://glance:{{glance_password}}@{{VIP_IP}}:3306/glance
+         openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken auth_uri http://{{VIP_IP}}:5000
+         openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken auth_url http://{{VIP_IP}}:5000
+         openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken memcached_servers {{memcached_servers}}
+         openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken auth_type password
+         openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken project_domain_name Default
+         openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken user_domain_name Default
+         openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken project_name service
+         openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken username glance
+         openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken password {{glance_password}}
+         openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken token_cache_time 3600
+         openstack-config --set /etc/glance/glance-registry.conf keystone_authtoken revocation_cache_time 3600
+         openstack-config --set /etc/glance/glance-registry.conf paste_deploy flavor keystone
+
+- name: 同步glance数据库
+  shell: su -s /bin/sh -c "glance-manage db_sync" glance
+
+- name: 启动服务
+  service: 
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+  with_items:
+    - openstack-glance-api
+    - openstack-glance-registry

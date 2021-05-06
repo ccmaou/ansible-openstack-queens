@@ -1,0 +1,28 @@
+- name: 安装RabbitMQ
+  yum: 
+    name: rabbitmq-server
+    state: present
+
+- name: 配置Rabbit配置文件
+  shell:
+     cmd: |
+          test -f /etc/rabbitmq/rabbitmq.config.bak || cp /etc/rabbitmq/rabbitmq.config /etc/rabbitmq/rabbitmq.config.bak
+          Local_IP="`ip add show ens35 | grep -E "^\s*inet +" | awk -F '[ /]+' 'NR==1{print $3}'`"
+          cat > /etc/rabbitmq/rabbitmq.config <<EOF
+          [
+           {rabbit,
+            [
+              {tcp_listeners, [{"$Local_IP", 5672}, {"::1", 5672}]}
+            ]
+           }
+          ].
+          EOF
+
+- name: 设置开机自启&启动服务
+  service:
+    name: rabbitmq-server
+    state: restarted
+    enabled: yes
+  notify:
+    stop rabbitmq
+    

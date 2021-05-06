@@ -1,0 +1,8 @@
+- name: 设置ntp主服务器
+  shell:
+    cmd: |
+      yum install -y chrony
+      sed -r -i 's|#allow 192.168.0.0/16|allow all|' /etc/chrony.conf
+      sed -r -i 's|#local stratum 10|local stratum 1|' /etc/chrony.conf
+      systemctl enable chronyd
+      systemctl restart chronyd

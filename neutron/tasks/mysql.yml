@@ -1,0 +1,21 @@
+- name: 创建Neutron数据库账户
+  shell:
+    cmd: |
+         mysql -uroot -p{{mysql_password}} << EOF
+         CREATE DATABASE IF NOT EXISTS neutron;
+         GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY '{{neutron_password}}';
+         GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' IDENTIFIED BY '{{neutron_password}}';
+         FLUSH PRIVILEGES;
+  when: ansible_hostname == 'controller1'
+
+- name: 配置Neutron用户
+  shell:
+    cmd: |
+        . ~/admin-openrc
+        openstack user create --domain Default --password {{neutron_password}} neutron
+        openstack role add --project service --user neutron admin
+        openstack service create --name neutron --description "OpenStack Networking" network
+        openstack endpoint create --region RegionOne network public http://{{VIP_IP}}:9696
+        openstack endpoint create --region RegionOne network internal http://{{VIP_IP}}:9696
+        openstack endpoint create --region RegionOne network admin http://{{VIP_IP}}:9696
+  when: ansible_hostname == 'controller1'

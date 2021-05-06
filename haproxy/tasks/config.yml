@@ -1,0 +1,11 @@
+- name: 加载haproxy配置文件
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+
+- name: 启动服务并打开自启
+  service: 
+     name: haproxy
+     state: restarted
+     enabled: yes
+

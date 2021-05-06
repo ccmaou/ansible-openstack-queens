@@ -1,0 +1,21 @@
+- name: 优化系统资源连接数
+  shell:
+    cmd: |
+          cat > /etc/security/limits.d/21-nproc-nofile.conf << EOF
+          *          hard    nofile    $(cat /proc/sys/fs/file-max)
+          *          soft    nofile    $(cat /proc/sys/fs/file-max)
+          *          hard    nproc     $(($(cat /proc/sys/kernel/threads-max)/2))
+          *          soft    nproc     $(($(cat /proc/sys/kernel/threads-max)/2))
+          EOF
+
+- name: 优化最大并发连接数
+  shell: 
+    cmd: |
+         cat > /etc/my.cnf.d/max_connections.cnf <<EOF
+        [mysqld]
+        max_connections = 16384
+        EOF
+        nofile=$(cat /proc/sys/fs/file-max)
+        sed -i -r 's/^\s*LimitNOFILE +=.*/LimitNOFILE = '$nofile'/' /lib/systemd/system/mysqld.service
+        systemctl daemon-reload
+        systemctl restart mysqld

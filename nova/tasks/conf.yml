@@ -1,0 +1,76 @@
+- name: 配置nova配置文件
+  shell: 
+    cmd: |
+        test -f /etc/nova/nova.conf.bak || cp /etc/nova/nova.conf /etc/nova/nova.conf.bak
+        Manager_IP="`ip add show {{manager_network}} | grep -E "^\s*inet +" | awk -F '[ /]+' 'NR==1{print $3}'`"
+        openstack-config --set /etc/nova/nova.conf DEFAULT enabled_apis osapi_compute,metadata
+        openstack-config --set /etc/nova/nova.conf DEFAULT transport_url rabbit://openstack:{{rabbitmq_password}}@{{VIP_IP}}:5672
+        openstack-config --set /etc/nova/nova.conf DEFAULT my_ip ${Manager_IP}
+        openstack-config --set /etc/nova/nova.conf DEFAULT osapi_compute_listen ${Manager_IP}
+        openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen ${Manager_IP}
+        openstack-config --set /etc/nova/nova.conf DEFAULT use_neutron true
+        openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
+        openstack-config --set /etc/nova/nova.conf DEFAULT scheduler discover_hosts_in_cells_interval 300
+        openstack-config --set /etc/nova/nova.conf DEFAULT vif_plugging_is_fatal false
+        openstack-config --set /etc/nova/nova.conf DEFAULT vif_plugging_timeout 0
+        openstack-config --set /etc/nova/nova.conf DEFAULT block_device_allocate_retries 6000
+        openstack-config --set /etc/nova/nova.conf DEFAULT block_device_allocate_retries_interval 10
+        openstack-config --set /etc/nova/nova.conf DEFAULT max_concurrent_builds 50
+        openstack-config --set /etc/nova/nova.conf api auth_strategy keystone
+        openstack-config --set /etc/nova/nova.conf api_database connection mysql+pymysql://nova:{{nova_password}}@{{VIP_IP}}/nova_api
+        openstack-config --set /etc/nova/nova.conf database connection mysql+pymysql://nova:{{nova_password}}@{{VIP_IP}}/nova
+        openstack-config --set /etc/nova/nova.conf glance api_servers http://{{VIP_IP}}:9292
+        openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_url http://{{VIP_IP}}:5000/v3
+        openstack-config --set /etc/nova/nova.conf keystone_authtoken memcached_servers {{memcached_servers}}
+        openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_type password
+        openstack-config --set /etc/nova/nova.conf keystone_authtoken project_domain_name Default
+        openstack-config --set /etc/nova/nova.conf keystone_authtoken user_domain_name Default
+        openstack-config --set /etc/nova/nova.conf keystone_authtoken project_name service
+        openstack-config --set /etc/nova/nova.conf keystone_authtoken username nova
+        openstack-config --set /etc/nova/nova.conf keystone_authtoken password {{keystone_password}}
+        openstack-config --set /etc/nova/nova.conf keystone_authtoken keystone_authtoken token_cache_time 3600
+        openstack-config --set /etc/nova/nova.conf keystone_authtoken keystone_authtoken revocation_cache_time 3600
+        openstack-config --set /etc/nova/nova.conf oslo_concurrency lock_path /var/lib/nova/tmp
+        openstack-config --set /etc/nova/nova.conf placement region_name RegionOne
+        openstack-config --set /etc/nova/nova.conf placement project_domain_name Default
+        openstack-config --set /etc/nova/nova.conf placement project_name service
+        openstack-config --set /etc/nova/nova.conf placement auth_type password
+        openstack-config --set /etc/nova/nova.conf placement user_domain_name Default
+        openstack-config --set /etc/nova/nova.conf placement auth_url http://{{VIP_IP}}:5000/v3
+        openstack-config --set /etc/nova/nova.conf placement username placement
+        openstack-config --set /etc/nova/nova.conf placement password {{placement_password}}
+        openstack-config --set /etc/nova/nova.conf vnc enabled true
+        openstack-config --set /etc/nova/nova.conf vnc server_listen \$my_ip
+        openstack-config --set /etc/nova/nova.conf vnc server_proxyclient_address \$my_ip
+        sed -r -i 's/^\s*Listen\s*8778/Listen '${Manager_IP}':8778/' /etc/httpd/conf.d/00-nova-placement-api.conf
+        echo -e "\n" >> /etc/httpd/conf.d/00-nova-placement-api.conf
+        cat >> /etc/httpd/conf.d/00-nova-placement-api.conf <<EOF
+        <Directory /usr/bin>
+           <IfVersion >= 2.4>
+              Require all granted
+           </IfVersion>
+           <IfVersion < 2.4>
+              Order allow,deny
+              Allow from all
+           </IfVersion>
+        </Directory>
+        EOF
+        systemctl restart httpd
+        su -s /bin/sh -c "nova-manage api_db sync" nova
+        su -s /bin/sh -c "nova-manage cell_v2 map_cell0" nova
+        su -s /bin/sh -c "nova-manage cell_v2 create_cell --name=cell1 --verbose" nova
+        su -s /bin/sh -c "nova-manage db sync" nova
+        su -s /bin/sh -c "nova-manage cell_v2 list_cells" nova
+        
+- name: 启动服务
+  service:
+     name: "{{item}}"
+     state: restarted
+     enabled: yes
+  with_items: 
+     - openstack-nova-api.service
+     - openstack-nova-consoleauth.service
+     - openstack-nova-scheduler.service
+     - openstack-nova-conductor.service
+     - openstack-nova-novncproxy.service
+

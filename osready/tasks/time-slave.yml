@@ -1,0 +1,7 @@
+- name: 计算节点时间同步
+  shell:
+    cmd: |
+        sed -r -i -e 's/^server 0.centos.*/server {{ ntp_server }}  iburst/' -e '/^server [1-3].centos/d' /etc/chrony.conf
+        systemctl enable chronyd
+        systemctl restart chronyd
+

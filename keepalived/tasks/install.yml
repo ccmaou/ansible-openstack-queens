@@ -1,0 +1,50 @@
+- name: 安装keepalived
+  yum: 
+    name: keepalived
+    state: present
+
+- name: 配置系统参数
+  shell:
+    cmd: |
+         cat > /etc/sysctl.d/keepalived.conf << EOF
+         net.ipv4.ip_nonlocal_bind = 1
+         EOF
+         sysctl --system
+
+- name: 开机自启&启动 Keepalived
+  service: 
+    name: keepalived
+    state: restarted
+    enabled: yes
+
+- name: 创建健康跟踪外部脚本
+  shell: 
+    cmd: |
+        script_dir="/etc/keepalived/scripts"
+        mkdir -p $script_dir
+        cat >${script_dir}/check_haproxy.sh<<EOF
+        #!/bin/bash
+        if [ \$(ps -C haproxy --no-header | wc -l) -eq 0 ]; then
+        systemctl start haproxy.service
+        if [ \$(ps -C haproxy --no-header | wc -l) -eq 0 ]; then
+        exit 1
+        else
+        exit 0
+        fi
+        else
+        exit 0
+        fi
+        EOF
+        chmod +x ${script_dir}/check_haproxy.sh
+        cat ${script_dir}/check_haproxy.sh
+
+- name: 创建配置文件
+  shell: test -f /etc/keepalived/keepalived.conf.bak || cp /etc/keepalived/keepalived.conf /etc/keepalived/keepalived.conf.bak
+
+- name: 编写配置文件
+  template: 
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+  
+- name: 重启keepalived
+  shell: systemctl restart keepalived && sleep 3

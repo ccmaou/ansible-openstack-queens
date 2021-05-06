@@ -1,0 +1,19 @@
+- name: 初始化Galera
+  script: intgalera.sh {{ mysql_password }}
+    
+
+- name: 暂停Galera
+  service:
+    name: mysqld
+    state: stopped
+
+- name: 创建软连接
+  shell: 
+    cmd: |
+         rm -rf /usr/lib64/libgalera_smm.so
+         ln -s /usr/lib64/galera-3/libgalera_smm.so /usr/lib64/libgalera_smm.so
+    
+- name: 复制模板文件
+  template: 
+    src: my.cnf.j2
+    dest: /etc/my.cnf
