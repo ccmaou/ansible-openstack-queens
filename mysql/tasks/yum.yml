@@ -1,0 +1,20 @@
+- name: 安装Galera Mysql组件
+  yum: 
+    name: "{{ item }}"
+    state: present
+  with_items: 
+    - rsync
+    - galera-3 
+    - mysql-wsrep-5.7
+    - mysql-wsrep-libs-5.7
+    - mysql-wsrep-server-5.7
+    - mysql-wsrep-client-5.7
+    - mysql-wsrep-common-5.7
+  ignore_errors: true
+
+- name: 启动服务
+  service: 
+    name: mysqld
+    state: started
+    enabled: yes
+

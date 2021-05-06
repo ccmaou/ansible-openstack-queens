@@ -1,0 +1,13 @@
+[ml2]
+type_drivers = flat,vlan,gre,vxlan
+tenant_network_types = vxlan
+mechanism_drivers = openvswitch,l2population
+extension_drivers = port_security
+
+[securitygroup]
+enable_ipset = true
+enable_security_group = true
+firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+
+[ml2_type_flat]
+flat_networks = {{flat_net_name}}

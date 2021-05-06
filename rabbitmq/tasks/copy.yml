@@ -1,0 +1,11 @@
+- name: 传输RabbitMQ密钥
+  copy: 
+    src: .erlang.cookie
+    dest: /var/lib/rabbitmq/
+    owner: rabbitmq
+    group: rabbitmq
+    mode: 0400
+    force: yes
+
+
+    

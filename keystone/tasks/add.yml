@@ -1,0 +1,9 @@
+- name: 生成admin登陆文件
+  template:
+    src: ../templates/admin-openrc.j2
+    dest: /root/admin-openrc
+
+- name: 生成demo登陆文件
+  template:
+     src: ../templates/demo-openrc.j2
+     dest: /root/demo-openrc

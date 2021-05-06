@@ -1,0 +1,40 @@
+[controller]
+controller1 ansible_host=192.168.150.100 ansible_connection=ssh ansible_ssh_port=22 ansible_ssh_user=root ansible_ssh_pass=
+controller2 ansible_host=192.168.150.110 ansible_connection=ssh ansible_ssh_port=22 ansible_ssh_user=root ansible_ssh_pass=
+
+[compute]
+compute ansible_host=192.168.150.120 ansible_connection=ssh ansible_ssh_port=22 ansible_ssh_user=root ansible_ssh_pass=
+
+[all:children]
+controller
+compute
+
+[all:vars]
+controller1_hostname=controller1
+controller2_hostname=controller2
+compute_hostname=compute
+ntp_server=controller1
+mysql_password=
+controller1_ip=192.168.150.100
+controller1_net_ip=192.168.10.136
+controller2_ip=192.168.150.110
+controller2_net_ip=192.168.10.137
+compute_ip=192.168.150.120
+VIP_IP=192.168.150.200
+NET_VIP_IP=192.168.10.140
+net_network=ens33
+manager_network=ens34
+stroage_network=ens35
+gcomm=192.168.150.100,192.168.150.110
+rabbitmq_password=
+keystone_password=
+glance_password=glancepasswd
+neutron_password=
+placement_password=
+nova_password=
+openstack_admin_password=
+openstack_demo_password=demo123
+memcached_servers=192.168.150.100:11211,192.168.150.110:11211
+flat_net_name=exnet
+ovs_br_name=br-ex
+metadata_password=

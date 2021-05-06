@@ -1,0 +1,14 @@
+- name: 安装HAproxy
+  yum: 
+    name: haproxy
+    state: present
+
+- name: 优化系统参数
+  shell:
+     cmd: |
+          cat > /etc/sysctl.d/haproxy.conf << EOF
+          net.ipv4.ip_forward = 1
+          net.ipv4.ip_nonlocal_bind = 1
+          EOF
+          sysctl --system
+

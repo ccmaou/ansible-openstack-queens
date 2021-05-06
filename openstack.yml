@@ -1,0 +1,111 @@
+- hosts: controller1
+  tasks: 
+   - name: 设置controller1主机名
+     shell: 
+       cmd: | 
+           hostnamectl set-hostname {{controller1_hostname}}
+
+- hosts: controller2
+  tasks: 
+   - name: 设置controller2主机名
+     shell: 
+       cmd: | 
+             hostnamectl set-hostname {{controller2_hostname}}
+
+- hosts: compute 
+  tasks: 
+   - name: 设置compute主机名
+     shell: 
+       cmd: | 
+             hostnamectl set-hostname {{compute_hostname}}
+
+- hosts: all
+  roles: 
+    - role: osready
+  
+- hosts: controller1
+  tasks:
+    - include: osready/tasks/time-master.yml
+
+- hosts: all:!controller1
+  tasks:
+    - include: osready/tasks/time-slave.yml
+
+- hosts: controller
+  roles: 
+    - role: mysql
+
+- hosts: controller1
+  tasks:
+    - include: mysql/tasks/start.yml
+
+- hosts: controller:!controller1
+  tasks:
+    - name: 加入
+      shell: systemctl restart mysqld
+
+- hosts: controller
+  roles:
+    - role: haproxy
+
+- hosts: controller:!controller2
+  tasks:
+    - include: haproxy/tasks/mysql.yml
+
+- hosts: controller
+  roles:
+    - role: keepalived
+    - role: rabbitmq
+
+- hosts: controller1
+  tasks:
+    - include: rabbitmq/tasks/start.yml
+
+- hosts: controller:!controller1
+  tasks:
+    - include: rabbitmq/tasks/start.yml
+
+- hosts: controller2
+  tasks:
+    - include: rabbitmq/tasks/set.yml
+
+- hosts: controller
+  tasks:
+    - include: rabbitmq/tasks/enable.yml
+
+- hosts: controller
+  roles:
+    - role: memcached
+    - role: etcd
+
+- hosts: controller1
+  roles:
+    - role: keystone
+
+- hosts: controller:!controller1
+  tasks:
+     - include: keystone/tasks/int.yml
+
+- hosts: controller
+  tasks:
+     - include: keystone/tasks/add.yml
+    
+
+- hosts: controller:!controller1
+  tasks:
+     - include: keystone/tasks/core.yml
+     - include: glance/tasks/config.yml
+     - include: glance/tasks/install.yml
+     
+- hosts: controller:!controller2
+  tasks:
+     - include: nova/tasks/database.yml
+
+- hosts: controller
+  tasks:
+     - include: nova/tasks/install.yml
+     - include: nova/tasks/conf.yml
+
+- hosts: controller
+  roles:
+    - role: neutron

@@ -1,0 +1,16 @@
+- name: 创建数据库权限
+  shell:
+    cmd: |
+         mysql -uroot -p{{mysql_password}} -P3306 <<EOF
+         create user 'haproxy_check'@'localhost';
+         create user 'haproxy_check'@'{{controller1_ip}}';
+         create user 'haproxy_check'@'{{controller2_ip}}';
+         create user 'haproxy_check'@'{{controller1_hostname}}';
+         create user 'haproxy_check'@'{{controller2_hostname}}';
+         grant process on *.* to 'haproxy_check'@'localhost' identified by '';
+         grant process on *.* to 'haproxy_check'@'{{controller1_ip}}' identified by '';
+         grant process on *.* to 'haproxy_check'@'{{controller2_ip}}' identified by '';
+         grant process on *.* to 'haproxy_check'@'{{controller1_hostname}}' identified by '';
+         grant process on *.* to 'haproxy_check'@'{{controller2_hostname}}' identified by '';
+         flush privileges;
+         EOF

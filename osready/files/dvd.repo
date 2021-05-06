@@ -1,0 +1,5 @@
+[iso-repo]
+name=CentOS 7.9 dvd RPM
+baseurl=http://192.168.150.100/centos7u9
+enable=1
+gpgcheck=0

@@ -1,0 +1,16 @@
+- name: 安装Memcached
+  yum:
+   name: memcached
+   state: present
+
+- name: 编写配置文件
+  template: 
+    src: memcached.j2
+    dest: /etc/sysconfig/memcached
+
+- name: 开机自启和启动
+  service:
+    name: memcached
+    state: started
+    enabled: yes
+

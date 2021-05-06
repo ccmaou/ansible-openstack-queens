@@ -1,0 +1,40 @@
+[DEFAULT]
+auth_strategy = keystone
+core_plugin = ml2
+service_plugins = router
+state_path=/var/lib/neutron
+dhcp_agent_notification= true
+allow_overlapping_ips = true
+transport_url = rabbit://openstack:{{rabbitmq_password}}@{{VIP_IP}}:5672
+notify_nova_on_port_status_changes = true
+notify_nova_on_port_data_changes = true
+
+
+[database]
+connection = mysql+pymysql://neutron:{{neutron_password}}@{{VIP_IP}}/neutron
+
+[keystone_authtoken]
+auth_uri = http://{{VIP_IP}}:5000
+auth_url = http://{{VIP_IP}}:35357
+memcached_servers = {{memcached_servers}}
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+project_name = service
+username = neutron
+password = {{neutron_password}}
+token_cache_time = 3600
+revocation_cache_time = 3600
+
+[nova]
+auth_url = http://{{VIP_IP}}:35357
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+region_name = RegionOne
+project_name = service
+username = nova
+password = {{nova_password}}
+
+[oslo_concurrency]
+lock_path = /var/lib/neutron/tmp

@@ -1,0 +1,55 @@
+global_defs {
+    router_id {{inventory_hostname_short}}
+    script_user root
+    enable_script_security 
+}
+
+vrrp_script check_haproxy {
+    script "/etc/keepalived/scripts/check_haproxy.sh"
+    interval 3
+    rise 1
+    fall 1
+    weight 15
+}
+
+vrrp_sync_group VG01 {
+    group {
+        HA-HAproxy
+    }
+    global_tracking
+}
+
+garp_group {
+    garp_interval 1
+    gna_interval 1
+    interfaces {
+        {{manager_network}}
+    }
+}
+
+vrrp_instance HA-HAproxy {
+    nopreempt                     
+    state BACKUP                  
+    priority 100                                 
+    interface {{manager_network}}
+    use_vmac
+    vmac_xmit_base               
+    advert_int 2                   
+    authentication {
+        auth_type PASS
+        auth_pass keepalived123
+    }
+    virtual_router_id 210         
+    virtual_ipaddress {
+        {{VIP_IP}} dev {{manager_network}}
+        {{NET_VIP_IP}} dev {{net_network}}
+    }
+    track_interface {
+        {{net_network}}
+        {{manager_network}}
+        {{stroage_network}}
+    }
+    track_script {
+        check_haproxy
+    }
+}

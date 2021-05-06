@@ -1,0 +1,20 @@
+- name: 安装etcd
+  yum: 
+   name: etcd
+   state: present
+
+- name: 备份配置文件
+  shell: test -f /etc/etcd/etcd.conf.bak || cp /etc/etcd/etcd.conf /etc/etcd/etcd.conf.bak
+
+- name: 编写配置文件
+  template:
+    src: etcd.conf.j2
+    dest: /etc/etcd/etcd.conf
+
+- name: 启动并加入
+  service: 
+    name: etcd
+    state: restarted
+    enabled: yes
+
+

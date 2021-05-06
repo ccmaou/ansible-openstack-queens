@@ -1,0 +1,56 @@
+- name: 清空本地yum源
+  shell: rm -rf /etc/yum.repos.d/*
+
+- name: 修改apache监听端口
+  shell:
+    cmd: |
+         Local_IP="`ip add show {{manager_network}} | grep -E "^\s*inet +" | awk -F '[ /]+' 'NR==1{print $3}'`"
+         sed -r -i 's/^\s*Listen\s*80/Listen '$Local_IP':80/' /etc/httpd/conf/httpd.conf
+  ignore_errors: yes
+
+- name: 重启httpd
+  service:
+     name: httpd
+     state: restarted
+     enabled: yes
+  ignore_errors: yes
+
+- name: 关闭网络和防火墙服务
+  service:
+    name: "{{ item }}"
+    state: stopped  
+  loop: 
+    - NetworkManager
+    - firewalld
+
+- name: 传输本地yum源
+  copy:
+   src: "{{ item }}"
+   dest: /etc/yum.repos.d/
+   owner: root
+   group: root
+  loop:
+    - yum.repo
+    - dvd.repo
+
+- name: 刷新缓存
+  shell: 
+     cmd: yum clean all && yum makecache
+       
+
+- name: 安装所有组件
+  yum: 
+    name: "{{ item }}"
+    state: present
+  loop:
+    - python-openstackclient 
+    - openstack-selinux
+    - python-openstackclient
+    - openstack-utils
+    - MySQL-python
+  ignore_errors: true
+
+- name: SElinux关闭
+  shell:
+    cmd: |
+        sed -r -i '/^\s*SELINUX=/c\SELINUX=disabled' /etc/selinux/config

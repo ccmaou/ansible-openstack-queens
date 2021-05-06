@@ -1,0 +1,51 @@
+- name: 安装keystone组件
+  yum:
+   name: "{{ item }}"
+   state: present
+  with_items:
+   - openstack-keystone
+   - httpd
+   - mod_wsgi
+
+- name: 配置keystone
+  shell:
+    cmd: |
+         sed -r -i 's/^\s*Listen\s*80/Listen '$HOSTNAME:80/'' /etc/httpd/conf/httpd.conf
+         test -f /etc/keystone/keystone.conf.bak || cp /etc/keystone/keystone.conf /etc/keystone/keystone.conf.bak
+         openstack-config --set /etc/keystone/keystone.conf database connection mysql+pymysql://keystone:{{keystone_password}}@{{VIP_IP}}:3306/keystone
+         openstack-config --set /etc/keystone/keystone.conf token provider fernet
+         keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+         keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+
+
+- name: 统一密钥存储库文件
+  synchronize: 
+    src: /etc/keystone/fernet-keys/
+    dest: /etc/keystone/fernet-keys/
+    mode: pull
+  delegate_to: controller1
+
+
+- name: 配置httpd
+  shell:
+    cmd: |
+          test -e ~/httpd.conf.bak && echo "已备份" || \cp /etc/httpd/conf/httpd.conf ~/httpd.conf.bak
+          sed -r -i '/(^[ \t]*#|^[ \t]*$)/d' /etc/httpd/conf/httpd.conf
+          grep -Ee "^[ \t]*ServerName" /etc/httpd/conf/httpd.conf
+          if [[ $? == "0" ]]; then
+             sed -r -i '/^[ \t]*ServerName/d' /etc/httpd/conf/httpd.conf
+             sed -r -i '1i ServerName '{{inventory_hostname_short}}':80' /etc/httpd/conf/httpd.conf
+          else
+             sed -r -i '1i ServerName '{{inventory_hostname_short}}':80' /etc/httpd/conf/httpd.conf
+          fi
+          ln -s /usr/share/keystone/wsgi-keystone.conf /etc/httpd/conf.d/
+          Local_IP="`ip add show {{manager_network}} | grep -E "^\s*inet +" | awk -F '[ /]+' 'NR==1{print $3}'`"
+          sed -r -i 's/Listen 5000/Listen '$Local_IP':5000/' /etc/httpd/conf.d/wsgi-keystone.conf
+          sed -r -i 's/Listen 35357/Listen '$Local_IP':35357/' /etc/httpd/conf.d/wsgi-keystone.conf
+
+- name: 启动httpd
+  service: 
+     name: httpd
+     state: restarted
+     enabled: yes
+     

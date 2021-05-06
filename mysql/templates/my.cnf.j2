@@ -1,0 +1,43 @@
+[mysqld]
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+user=mysql
+binlog_format=ROW
+innodb_file_per_table = on
+collation-server = utf8_general_ci
+character-set-server = utf8
+{% if manager_network == "ens33" %}
+bind-address={{ansible_ens33.ipv4.address}}
+{% endif %}
+{% if manager_network == "ens34" %}
+bind-address={{ansible_ens34.ipv4.address}}
+{% endif %}
+{% if manager_network == "ens35" %}
+bind-address={{ansible_ens35.ipv4.address}}
+{% endif %}
+max_connections=65535
+max_connect_errors=4000
+validate_password=off
+default_storage_engine=innodb
+innodb_autoinc_lock_mode=2
+innodb_flush_log_at_trx_commit=0
+innodb_buffer_pool_size=122M
+wsrep_provider=/usr/lib64/libgalera_smm.so
+wsrep_provider_options="gcache.size=300M; gcache.page_size=300M"
+wsrep_cluster_name="example_cluster"
+wsrep_cluster_address="gcomm://{{gcomm}}"
+wsrep_node_name="{{inventory_hostname_short}}"
+{% if manager_network == "ens33" %}
+wsrep_node_address={{ansible_ens33.ipv4.address}}
+{% endif %}
+{% if manager_network == "ens34" %}
+wsrep_node_address={{ansible_ens34.ipv4.address}}
+{% endif %}
+{% if manager_network == "ens35" %}
+wsrep_node_address={{ansible_ens35.ipv4.address}}
+{% endif %}
+wsrep_sst_method=rsync
+!includedir /etc/my.cnf.d
+[mysql_safe]
+log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid

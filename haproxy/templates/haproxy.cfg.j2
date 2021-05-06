@@ -1,0 +1,143 @@
+global
+  chroot   /var/lib/haproxy
+  daemon
+  group    haproxy
+  maxconn  4000
+  pidfile  /var/run/haproxy.pid
+  user     haproxy
+#################################################################
+defaults
+  log  global
+  maxconn  4000
+  option   redispatch
+  retries  3
+  timeout  http-request 10s
+  timeout  queue 1m
+  timeout  connect 10s
+  timeout  client 1m
+  timeout  server 1m
+  timeout  check 10s
+#################################################################
+## haproxy监控页
+listen stats
+  bind 0.0.0.0:1080
+  mode http
+  stats enable
+  stats uri /
+  stats realm OpenStack\Haproxy
+  stats auth admin:admin
+  stats  refresh 30s
+  stats  show-node
+  stats  show-legends
+  stats  hide-version
+#################################################################
+## Galera集群
+listen galera_mysql
+  bind {{VIP_IP}}:3306
+  balance  source
+  mode tcp
+  option   mysql-check user haproxy_check
+  server   {{controller1_hostname}} {{controller1_ip}}:3306 check port 3306 inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:3306 check port 3306 inter 2000 rise 2 fall 5
+#################################################################
+## RabbitMQ消息队列
+listen rabbitmq
+  bind {{VIP_IP}}:5672
+  balance   roundrobin
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_ip}}:5672 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:5672 check inter 2000 rise 2 fall 5
+#################################################################
+## OpenStack Keystone验证服务
+listen keystone_admin 
+  bind {{VIP_IP}}:35357
+  balance   source
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_ip}}:35357 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:35357 check inter 2000 rise 2 fall 5
+listen keystone_internal_public
+  bind {{VIP_IP}}:5000
+  balance  source
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_ip}}:5000 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:5000 check inter 2000 rise 2 fall 5
+#################################################################
+## OpenStack Glance镜像服务
+listen glance_admin_internal_public
+  bind {{VIP_IP}}:9292
+  balance   source
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_ip}}:9292 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:9292 check inter 2000 rise 2 fall 5
+#################################################################
+## OpenStack placement计算服务
+listen placement_admin_internal_public
+  bind {{VIP_IP}}:8778
+  balance   source
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_ip}}:8778 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:8778 check inter 2000 rise 2 fall 5
+#################################################################
+## OpenStack Nova计算服务
+listen nova_admin_internal_public
+  bind {{VIP_IP}}:8774
+  balance   source
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_ip}}:8774 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:8774 check inter 2000 rise 2 fall 5
+#################################################################
+## OpenStack Neutron网络服务
+listen neutron_admin_internal_public
+  bind {{VIP_IP}}:9696
+  balance   source
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_ip}}:9696 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:9696 check inter 2000 rise 2 fall 5
+#################################################################
+## OpenStack cinderv2/3卷存储服务
+listen neutron_admin_internal_public
+  bind {{VIP_IP}}:8776
+  balance  source
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_ip}}:8776 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:8776 check inter 2000 rise 2 fall 5
+#################################################################
+## OpenStack Swift对象存储服务
+listen neutron_admin_internal_public
+  bind {{VIP_IP}}:8080
+  balance   source
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_ip}}:8080 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:8080 check inter 2000 rise 2 fall 5
+#################################################################
+## OpenStack Ceilometer监控服务
+listen ceilomete_admin_internal_public
+  bind {{VIP_IP}}:8777
+  balance   source
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_ip}}:8777 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:8777 check inter 2000 rise 2 fall 5
+#################################################################
+## OpenStack Gnocchi监控数据海量存储服务
+listen gnocchi_admin_internal_public
+  bind {{VIP_IP}}:8041
+  balance   source
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_ip}}:8041 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:8041 check inter 2000 rise 2 fall 5
+#################################################################
+## OpenStack Aodh警告服务
+listen aodh_admin_internal_public
+  bind {{VIP_IP}}:8042
+  balance   source
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_ip}}:8042 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_ip}}:8042 check inter 2000 rise 2 fall 5
+#################################################################
+## OpenStack Dashboard仪表盘服务
+listen aodh_admin_internal_public
+  bind {{NET_VIP_IP}}:80
+  balance   source
+  mode tcp
+  server   {{controller1_hostname}} {{controller1_net_ip}}:80 check inter 2000 rise 2 fall 5
+  server   {{controller2_hostname}} {{controller2_net_ip}}:80 check inter 2000 rise 2 fall 5
